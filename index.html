@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dots and Blocks</title>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔲</text></svg>">
+    <!-- PeerJS CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+    <style>
+        :root {
+            --dot-size: 12px;
+            --line-thickness: 5px;
+            --line-length: 40px;
+            --p1-color: #f1c40f; /* Yellow */
+            --p2-color: #e67e22; /* Orange */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* Colorful vibrant gradient background */
+            background: linear-gradient(135deg, #74b9ff, #a29bfe, #ffeaa7);
+            background-attachment: fixed;
+            margin: 0;
+            padding: 10px;
+            touch-action: manipulation;
+            min-height: 100vh;
+        }
+
+        h1 { 
+            margin: 10px 0 5px 0; 
+            font-size: 26px; 
+            text-align: center; 
+            color: #2d3436;
+            text-shadow: 1px 1px 3px rgba(255,255,255,0.6);
+        }
+
+        /* Splash Screen / Menu */
+        #splash-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            max-width: 320px;
+            width: 100%;
+            text-align: center;
+            margin-top: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .menu-section {
+            margin: 12px 0;
+            width: 100%;
+        }
+
+        .menu-section h3 {
+            margin-bottom: 6px;
+            font-size: 15px;
+            color: #444;
+        }
+
+        .menu-btn-group {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .menu-btn {
+            flex: 1;
+            padding: 8px 4px;
+            font-size: 13px;
+            font-weight: bold;
+            border: 2px solid #ddd;
+            background-color: #f1f1f1;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .menu-btn.selected {
+            background-color: #333;
+            color: white;
+            border-color: #333;
+        }
+
+        .name-input {
+            width: 90%;
+            padding: 8px;
+            font-size: 14px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .name-input:focus { border-color: #333; }
+
+        /* Online panel */
+        #online-panel {
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        #start-game-btn {
+            margin-top: 15px;
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background-color: #00b894;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 184, 148, 0.3);
+            transition: background-color 0.2s;
+        }
+        #start-game-btn:hover { background-color: #00a884; }
+
+        /* Game Screen container */
+        #game-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .dashboard {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 340px;
+            margin: 10px 0;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 10px 0;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .turn-indicator {
+            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 6px 18px;
+            border-radius: 20px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        /* Board Scroll Wrapper for Mobile */
+        .board-wrapper {
+            max-width: 100%;
+            overflow: auto;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        #game-board {
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+        }
+
+        .dot {
+            width: var(--dot-size);
+            height: var(--dot-size);
+            background-color: #333;
+            border-radius: 50%;
+            z-index: 2;
+            flex-shrink: 0;
+        }
+
+        .line {
+            background-color: #dfe6e9;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            z-index: 1;
+            flex-shrink: 0;
+        }
+
+        .h-line {
+            width: var(--line-length);
+            height: var(--line-thickness);
+        }
+
+        .v-line {
+            width: var(--line-thickness);
+            height: var(--line-length);
+            margin: 0 calc((var(--dot-size) - var(--line-thickness)) / 2);
+        }
+
+        .line:hover:not(.clicked) {
+            background-color: #b2bec3;
+        }
+
+        .line.clicked {
+            background-color: #000000 !important; /* All lines turn black */
+        }
+
+        .box {
+            width: var(--line-length);
+            height: var(--line-length);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+            flex-shrink: 0;
+        }
+
+        /* Player Colors for text/turn markers */
+        .p1-text { color: #b7950b; } 
+        .p2-text { color: #d35400; }
+        
+        .p1-bg { background-color: var(--p1-color) !important; }
+        .p2-bg { background-color: var(--p2-color) !important; }
+
+        #winner-banner {
+            margin: 10px 0;
+            font-size: 20px;
+            font-weight: bold;
+            display: none;
+            text-align: center;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .action-btns {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button.control-btn {
+            padding: 9px 18px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            background-color: #2d3436;
+            color: white;
+            border-radius: 6px;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        button.control-btn:hover { background-color: #636e72; }
+    </style>
+</head>
+<body>
+
+    <h1>Dots and Blocks</h1>
+
+    <!-- SPLASH SCREEN MENU -->
+    <div id="splash-screen">
+        <h2>Game Settings</h2>
+        
+        <div class="menu-section">
+            <h3>Mode</h3>
+            <div class="menu-btn-group">
+                <button class="menu-btn selected" onclick="setMode('ai')" id="mode-ai">1 Player</button>
+                <button class="menu-btn" onclick="setMode('local')" id="mode-local">2 Player</button>
+                <button class="menu-btn" onclick="setMode('online')" id="mode-online">Online</button>
+            </div>
+        </div>
+
+        <div class="menu-section">
+            <h3>Player Names</h3>
+            <div style="display: flex; flex-direction: column; gap: 6px; align-items: center;">
+                <input type="text" id="p1-name-input" class="name-input" placeholder="Your Name" value="Player 1">
+                <input type="text" id="p2-name-input" class="name-input" placeholder="Player 2 Name" value="AI">
+            </div>
+        </div>
+
+        <!-- Online Control Config -->
+        <div id="online-panel">
+            <div class="menu-btn-group">
+                <button class="menu-btn selected" onclick="setOnlineRole('host')" id="role-host">Host Room</button>
+                <button class="menu-btn" onclick="setOnlineRole('join')" id="role-join">Join Room</button>
+            </div>
+            <div id="host-section" style="font-size: 13px; color: #555; margin-top: 5px;">
+                Your Room ID: <span id="my-peer-id" style="font-weight:bold; color:#000;">Connecting...</span>
+            </div>
+            <div id="join-section" style="display: none; margin-top: 5px;">
+                <input type="text" id="remote-id-input" class="name-input" placeholder="Enter Host Room ID">
+            </div>
+        </div>
+
+        <div class="menu-section">
+            <h3>Board Size</h3>
+            <div class="menu-btn-group">
+                <button class="menu-btn" onclick="setSize(5, this)" id="size-4">4×4</button>
+                <button class="menu-btn" onclick="setSize(6, this)" id="size-5">5×5</button>
+                <button class="menu-btn selected" onclick="setSize(8, this)" id="size-7">7×7</button>
+            </div>
+        </div>
+
+        <button id="start-game-btn" onclick="startGame()">Start Game</button>
+    </div>
+
+    <!-- GAME PLAY SCREEN -->
+    <div id="game-container">
+        <div class="dashboard">
+            <div class="p1-text"><span id="display-p1-name">Player 1</span>: <span id="p1-score">0</span></div>
+            <div class="p2-text"><span id="display-p2-name">Player 2</span>: <span id="p2-score">0</span></div>
+        </div>
+
+        <div id="turn-display" class="turn-indicator p1-bg">Player 1's Turn</div>
+
+        <div class="board-wrapper">
+            <div id="game-board"></div>
+        </div>
+
+        <div id="winner-banner"></div>
+        
+        <div class="action-btns">
+            <button class="control-btn" onclick="restartGame()">Restart</button>
+            <button class="control-btn" onclick="returnToMenu()">Menu</button>
+        </div>
+    </div>
+
+    <script>
+        let gameMode = 'ai'; // 'ai', 'local', 'online'
+        let onlineRole = 'host'; // 'host', 'join'
+        let GRID_SIZE = 8; // Default 7x7 boxes
+        let currentPlayer = 1;
+        let scores = { 1: 0, 2: 0 };
+        let clickedLines = new Set();
+        let totalBoxes = 0;
+        let isAITurn = false;
+        let p1Name = "Player 1";
+        let p2Name = "AI";
+
+        // PeerJS variables
+        let peer = null;
+        let conn = null;
+        let myPeerId = null;
+        let localPlayerNumber = 1; // 1 for host, 2 for joiner
+
+        function setMode(mode) {
+            gameMode = mode;
+            document.getElementById('mode-ai').classList.toggle('selected', mode === 'ai');
+            document.getElementById('mode-local').classList.toggle('selected', mode === 'local');
+            document.getElementById('mode-online').classList.toggle('selected', mode === 'online');
+
+            const p2Input = document.getElementById('p2-name-input');
+            const onlinePanel = document.getElementById('online-panel');
+
+            onlinePanel.style.display = (mode === 'online') ? 'flex' : 'none';
+
+            if (mode === 'ai') {
+                p2Input.value = "AI";
+                p2Input.disabled = true;
+                p2Input.style.backgroundColor = "#f1f1f1";
+                p2Input.style.color = "#777";
+            } else if (mode === 'local') {
+                p2Input.value = "Player 2";
+                p2Input.disabled = false;
+                p2Input.style.backgroundColor = "white";
+                p2Input.style.color = "#000";
+            } else {
+                // Online mode
+                p2Input.value = "Friend";
+                p2Input.disabled = false;
+                p2Input.style.backgroundColor = "white";
+                p2Input.style.color = "#000";
+                initPeer();
+            }
+        }
+
+        function setOnlineRole(role) {
+            onlineRole = role;
+            document.getElementById('role-host').classList.toggle('selected', role === 'host');
+            document.getElementById('role-join').classList.toggle('selected', role === 'join');
+            document.getElementById('host-section').style.display = (role === 'host') ? 'block' : 'none';
+            document.getElementById('join-section').style.display = (role === 'join') ? 'block' : 'none';
+        }
+
+        function initPeer() {
+            if (peer) return;
+            peer = new Peer();
+            peer.on('open', (id) => {
+                myPeerId = id;
+                document.getElementById('my-peer-id').innerText = id;
+            });
+            peer.on('connection', (incomingConn) => {
+                conn = incomingConn;
+                setupConnectionListeners();
+                localPlayerNumber = 1; // Host is Player 1
+                setTimeout(startGame, 500);
+            });
+        }
+
+        function setupConnectionListeners() {
+            conn.on('data', (data) => {
+                if (data.type === 'move') {
+                    processMove(data.lineId, false);
+                } else if (data.type === 'restart') {
+                    initGame();
+                } else if (data.type === 'config') {
+                    GRID_SIZE = data.gridSize;
+                    p1Name = data.p2Name; 
+                    p2Name = data.p1Name;
+                    document.getElementById('display-p1-name').innerText = p1Name;
+                    document.getElementById('display-p2-name').innerText = p2Name;
+                    initGame();
+                }
+            });
+        }
+
+        function setSize(size, element) {
+            GRID_SIZE = size;
+            document.querySelectorAll('#splash-screen .menu-section:nth-last-child(2) .menu-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            element.classList.add('selected');
+        }
+
+        function startGame() {
+            p1Name = document.getElementById('p1-name-input').value.trim() || "Player 1";
+            p2Name = document.getElementById('p2-name-input').value.trim() || (gameMode === 'ai' ? "AI" : "Player 2");
+
+            if (gameMode === 'online' && onlineRole === 'join') {
+                const targetId = document.getElementById('remote-id-input').value.trim();
+                if (!targetId) {
+                    alert("Please enter the Host Room ID first!");
+                    return;
+                }
+                localPlayerNumber = 2; // Joiner is Player 2
+                conn = peer.connect(targetId);
+                conn.on('open', () => {
+                    setupConnectionListeners();
+                    conn.send({
+                        type: 'config',
+                        gridSize: GRID_SIZE,
+                        p1Name: p1Name,
+                        p2Name: p2Name
+                    });
+                    document.getElementById('display-p1-name').innerText = p1Name;
+                    document.getElementById('display-p2-name').innerText = p2Name;
+                    document.getElementById('splash-screen').style.display = 'none';
+                    document.getElementById('game-container').style.display = 'flex';
+                    initGame();
+                });
+                return;
+            }
+
+            document.getElementById('display-p1-name').innerText = p1Name;
+            document.getElementById('display-p2-name').innerText = p2Name;
+
+            document.getElementById('splash-screen').style.display = 'none';
+            document.getElementById('game-container').style.display = 'flex';
+            initGame();
+
+            if (gameMode === 'online' && onlineRole === 'host' && conn && conn.open) {
+                conn.send({
+                    type: 'config',
+                    gridSize: GRID_SIZE,
+                    p1Name: p1Name,
+                    p2Name: p2Name
+                });
+            }
+        }
+
+        function returnToMenu() {
+            if (conn) conn.close();
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('splash-screen').style.display = 'flex';
+        }
+
+        function initGame() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            currentPlayer = 1;
+            scores = { 1: 0, 2: 0 };
+            clickedLines.clear();
+            totalBoxes = (GRID_SIZE - 1) * (GRID_SIZE - 1);
+            isAITurn = false;
+            
+            updateScoreboard();
+            updateTurnDisplay();
+            document.getElementById('winner-banner').style.display = 'none';
+            document.getElementById('turn-display').style.display = 'block';
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                let row1 = document.createElement('div');
+                row1.className = 'row';
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let dot = document.createElement('div');
+                    dot.className = 'dot';
+                    row1.appendChild(dot);
+                    
+                    if (c < GRID_SIZE - 1) {
+                        let hline = document.createElement('div');
+                        hline.className = 'line h-line';
+                        hline.id = `hline_${r}_${c}`;
+                        hline.onclick = () => handleLineClick(`hline_${r}_${c}`);
+                        row1.appendChild(hline);
+                    }
+                }
+                board.appendChild(row1);
+
+                if (r < GRID_SIZE - 1) {
+                    let row2 = document.createElement('div');
+                    row2.className = 'row';
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        let vline = document.createElement('div');
+                        vline.className = 'line v-line';
+                        vline.id = `vline_${r}_${c}`;
+                        vline.onclick = () => handleLineClick(`vline_${r}_${c}`);
+                        row2.appendChild(vline);
+                        
+                        if (c < GRID_SIZE - 1) {
+                            let box = document.createElement('div');
+                            box.className = 'box';
+                            box.id = `box_${r}_${c}`;
+                            row2.appendChild(box);
+                        }
+                    }
+                    board.appendChild(row2);
+                }
+            }
+        }
+
+        function handleLineClick(id) {
+            if (isAITurn) return; 
+            if (clickedLines.has(id)) return;
+            if (gameMode === 'online' && currentPlayer !== localPlayerNumber) return;
+            
+            processMove(id, true);
+        }
+
+        function processMove(id, sendOverNetwork) {
+            if (clickedLines.has(id)) return;
+            clickedLines.add(id);
+            const lineEl = document.getElementById(id);
+            if (lineEl) lineEl.classList.add('clicked');
+
+            let boxCompleted = false;
+
+            for (let r = 0; r < GRID_SIZE - 1; r++) {
+                for (let c = 0; c < GRID_SIZE - 1; c++) {
+                    let boxId = `box_${r}_${c}`;
+                    let boxEl = document.getElementById(boxId);
+                    
+                    if (boxEl && !boxEl.classList.contains('filled')) {
+                        let top = `hline_${r}_${c}`;
+                        let bottom = `hline_${r+1}_${c}`;
+                        let left = `vline_${r}_${c}`;
+                        let right = `vline_${r}_${c+1}`;
+                        
+                        if (clickedLines.has(top) && clickedLines.has(bottom) && clickedLines.has(left) && clickedLines.has(right)) {
+                            boxCompleted = true;
+                            boxEl.classList.add('filled');
+                            boxEl.classList.add(currentPlayer === 1 ? 'p1-bg' : 'p2-bg');
+                            boxEl.innerText = currentPlayer === 1 ? p1Name.substring(0, 3) : p2Name.substring(0, 3);
+                            scores[currentPlayer]++;
+                        }
+                    }
+                }
+            }
+
+            updateScoreboard();
+
+            if (checkGameOver()) return;
+
+            if (!boxCompleted) {
+                currentPlayer = currentPlayer === 1 ? 2 : 1;
+            }
+            
+            updateTurnDisplay();
+
+            if (gameMode === 'online' && sendOverNetwork && conn && conn.open) {
+                conn.send({ type: 'move', lineId: id });
+            }
+
+            if (gameMode === 'ai' && currentPlayer === 2 && !checkGameOver()) {
+                isAITurn = true;
+                setTimeout(makeAIMove, 500); 
+            }
+        }
+
+        function restartGame() {
+            initGame();
+            if (gameMode === 'online' && conn && conn.open) {
+                conn.send({ type: 'restart' });
+            }
+        }
+
+        function makeAIMove() {
+            let allLines = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE - 1; c++) {
+                    let id = `hline_${r}_${c}`;
+                    if (!clickedLines.has(id)) allLines.push(id);
+                }
+            }
+            for (let r = 0; r < GRID_SIZE - 1; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let id = `vline_${r}_${c}`;
+                    if (!clickedLines.has(id)) allLines.push(id);
+                }
+            }
+
+            if (allLines.length === 0) return;
+
+            let winningMove = null;
+            for (let lineId of allLines) {
+                if (simulatesScore(lineId)) {
+                    winningMove = lineId;
+                    break;
+                }
+            }
+
+            let chosenMove = winningMove || allLines[Math.floor(Math.random() * allLines.length)];
+            isAITurn = false;
+            processMove(chosenMove, false);
+        }
+
+        function simulatesScore(lineId) {
+            let tempClicked = new Set(clickedLines);
+            tempClicked.add(lineId);
+            for (let r = 0; r < GRID_SIZE - 1; r++) {
+                for (let c = 0; c < GRID_SIZE - 1; c++) {
+                    let top = `hline_${r}_${c}`;
+                    let bottom = `hline_${r+1}_${c}`;
+                    let left = `vline_${r}_${c}`;
+                    let right = `vline_${r}_${c+1}`;
+                    let boxId = `box_${r}_${c}`;
+                    let boxEl = document.getElementById(boxId);
+                    if (boxEl && !boxEl.classList.contains('filled') && tempClicked.has(top) && tempClicked.has(bottom) && tempClicked.has(left) && tempClicked.has(right)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function updateScoreboard() {
+            document.getElementById('p1-score').innerText = scores[1];
+            document.getElementById('p2-score').innerText = scores[2];
+        }
+
+        function updateTurnDisplay() {
+            const turnDisplay = document.getElementById('turn-display');
+            let activeName = currentPlayer === 1 ? p1Name : p2Name;
+            turnDisplay.innerText = `${activeName}'s Turn`;
+            
+            if (currentPlayer === 1) {
+                turnDisplay.className = 'turn-indicator p1-bg';
+            } else {
+                turnDisplay.className = 'turn-indicator p2-bg';
+            }
+        }
+
+        function checkGameOver() {
+            if (scores[1] + scores[2] === totalBoxes) {
+                const banner = document.getElementById('winner-banner');
+                document.getElementById('turn-display').style.display = 'none';
+                banner.style.display = 'block';
+                
+                if (scores[1] > scores[2]) {
+                    banner.innerText = `🏆 ${p1Name} Wins!`;
+                    banner.className = "p1-text";
+                } else if (scores[2] > scores[1]) {
+                    banner.innerText = `🏆 ${p2Name} Wins!`;
+                    banner.className = "p2-text";
+                } else {
+                    banner.innerText = "🤝 It's a Tie!";
+                    banner.style.color = "#333";
+                }
+                return true;
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>
